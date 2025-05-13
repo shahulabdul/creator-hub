@@ -3,11 +3,12 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/lib/prisma-client"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./prisma/dev.db"
 }
 
 // User model
@@ -42,12 +43,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token     String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token         String?
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -111,7 +112,7 @@ model Asset {
   key         String    // S3 key
   size        Int       // Size in bytes
   mimeType    String
-  tags        String[]
+  tags        String    // Stored as JSON string of array values
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   
