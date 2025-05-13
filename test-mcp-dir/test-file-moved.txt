@@ -1,0 +1,2 @@
+This is a test file created by Cascade to test the MCP filesystem server.
+This line was added during an edit test.
