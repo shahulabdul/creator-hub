@@ -59,10 +59,11 @@ export default function DashboardHeader({ user, onToggleSidebar, sidebarOpen }: 
       
       <div className="flex items-center space-x-4">
         {/* AI Studio Link */}
-        <Link href="/ai-studio" legacyBehavior>
-          <a className="text-sm font-medium text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md hover:bg-gray-100">
-            AI Studio
-          </a>
+        <Link 
+          href="/ai-studio" 
+          className="text-sm font-medium text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md hover:bg-gray-100"
+        >
+          AI Studio
         </Link>
 
         {/* Notifications */}

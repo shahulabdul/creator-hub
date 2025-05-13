@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
+  // Set a default URL for development to avoid the NEXTAUTH_URL warning
+  ...(process.env.NEXTAUTH_URL ? {} : { url: 'http://localhost:3000' }),
   providers: [
     // Use Google Provider when environment variables are available
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
