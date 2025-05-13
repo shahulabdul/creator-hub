@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
     
     // For development, use a fixed ID if session.user.id is not available
-    const userId = session.user.id || 'demo-user-1';
+    let userId = session.user.id || 'demo-user-1';
     console.log('Using userId:', userId);
     
     // Get query parameters
@@ -82,8 +82,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    const userId = session.user.id;
-    const data = await request.json();
+    // For development, use a fixed ID if session.user.id is not available
+    let userId = session.user.id || 'demo-user-1';
+    console.log('Creating project with userId:', userId);
+    
+    // Check if the user exists in the database by ID or email
+    let userEmail = session.user.email || 'demo@example.com';
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: userId },
+          { email: userEmail }
+        ],
+      },
+    });
+    
+    // If user doesn't exist, create a demo user
+    if (!user) {
+      console.log('User not found in database, creating demo user...');
+      try {
+        user = await prisma.user.create({
+          data: {
+            id: userId,
+            name: session.user.name || 'Demo User',
+            email: userEmail,
+          },
+        });
+        console.log('Created demo user:', user);
+      } catch (userError) {
+        console.error('Error creating user:', userError);
+        // If we can't create a user, find any existing user to use
+        const anyUser = await prisma.user.findFirst();
+        if (anyUser) {
+          console.log('Using existing user:', anyUser);
+          user = anyUser;
+          userId = anyUser.id;
+        } else {
+          throw new Error('Cannot create or find a valid user');
+        }
+      }
+    } else {
+      console.log('Found existing user:', user);
+      // Make sure we use the correct user ID for the project
+      userId = user.id;
+    }
+    
+    let data = await request.json();
     
     // Validate required fields
     if (!data.title) {

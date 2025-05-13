@@ -90,6 +90,3 @@ trigger: always_on
 - **Never hallucinate libraries or functions** – only use known, verified packages for the chosen tech stack.
 - **Always confirm file paths and module names** exist before referencing them in code.
 - **Never delete or overwrite existing code** unless explicitly instructed to or if part of a task from `TASK.md`.
-- **Keep going until the job is completely solved before ending your turn.
-- **If you're unsure about code or files, open them do not hallucinate. 
-- **Plan thoroughly before every tool call and reflect on the outcome after. 

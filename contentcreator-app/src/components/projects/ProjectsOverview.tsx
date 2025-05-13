@@ -1,28 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Plus, MoreHorizontal, Calendar, CheckSquare } from 'lucide-react';
-import { showToast } from '@/components/ui/toaster';
-
-interface Project {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  startDate: string | null;
-  endDate: string | null;
-  tasks: { id: string; title: string; status: string }[];
-}
+import { useProjects, Project } from '@/contexts/ProjectsContext';
 
 interface ProjectsOverviewProps {
   limit?: number;
 }
 
 export default function ProjectsOverview({ limit }: ProjectsOverviewProps) {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { projects, isLoading, error, addProject } = useProjects();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProject, setNewProject] = useState({
     title: '',
@@ -31,57 +19,20 @@ export default function ProjectsOverview({ limit }: ProjectsOverviewProps) {
     endDate: '',
   });
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/projects');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch projects');
-        }
-        
-        const data = await response.json();
-        setProjects(limit ? data.slice(0, limit) : data);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching projects:', err);
-        setError('Failed to load projects. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchProjects();
-  }, [limit]);
-
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    try {
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: newProject.title,
-          description: newProject.description || null,
-          startDate: newProject.startDate ? new Date(newProject.startDate).toISOString() : null,
-          endDate: newProject.endDate ? new Date(newProject.endDate).toISOString() : null,
-          status: 'PLANNING',
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create project');
-      }
-      
-      const createdProject = await response.json();
-      
-      // Update the projects list
-      setProjects((prev) => [createdProject, ...prev]);
-      
+    const projectData = {
+      title: newProject.title,
+      description: newProject.description || null,
+      startDate: newProject.startDate ? new Date(newProject.startDate).toISOString() : null,
+      endDate: newProject.endDate ? new Date(newProject.endDate).toISOString() : null,
+      status: 'planned',
+    };
+    
+    const result = await addProject(projectData);
+    
+    if (result) {
       // Reset form and close modal
       setNewProject({
         title: '',
@@ -90,137 +41,101 @@ export default function ProjectsOverview({ limit }: ProjectsOverviewProps) {
         endDate: '',
       });
       setShowCreateModal(false);
-      
-      // Show success message
-      showToast('Project created successfully', 'success');
-    } catch (err) {
-      console.error('Error creating project:', err);
-      showToast('Failed to create project', 'error');
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PLANNING':
-        return 'bg-blue-100 text-blue-800';
-      case 'IN_PROGRESS':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'COMPLETED':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="bg-white p-6 rounded-lg shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Projects</h2>
-        </div>
-        <div className="animate-pulse">
-          {[...Array(limit || 3)].map((_, i) => (
-            <div key={i} className="mb-4 p-4 border rounded-md">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-white p-6 rounded-lg shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Projects</h2>
-        </div>
-        <div className="bg-red-50 p-4 rounded-md text-red-600">
-          <p>{error}</p>
-          <button 
-            className="mt-2 text-sm text-blue-600 hover:underline"
-            onClick={() => window.location.reload()}
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Filter projects based on limit prop
+  const displayProjects = limit ? projects.slice(0, limit) : projects;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold">Projects</h2>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Projects</h2>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+          className="flex items-center gap-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
         >
-          <Plus size={16} className="mr-1" />
-          New Project
+          <Plus size={16} />
+          <span>New Project</span>
         </button>
       </div>
       
-      {projects.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-gray-500 mb-4">No projects yet</p>
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      ) : error ? (
+        <div className="p-4 bg-red-50 text-red-500 rounded-md">
+          {error}
+        </div>
+      ) : displayProjects.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {displayProjects.map((project) => (
+            <div
+              key={project.id}
+              className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold text-lg">{project.title}</h3>
+                <button className="text-gray-500 hover:text-gray-700">
+                  <MoreHorizontal size={16} />
+                </button>
+              </div>
+              
+              {project.description && (
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{project.description}</p>
+              )}
+              
+              <div className="flex justify-between items-center mb-3">
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  project.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  project.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {project.status === 'in-progress' ? 'In Progress' : 
+                   project.status === 'completed' ? 'Completed' : 'Planned'}
+                </span>
+                
+                {project.startDate && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Calendar size={12} className="mr-1" />
+                    <span>
+                      {new Date(project.startDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-between">
+                {project.tasks && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <CheckSquare size={12} className="mr-1" />
+                    <span>{project.tasks.length} tasks</span>
+                  </div>
+                )}
+                
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="text-xs text-blue-500 hover:text-blue-700"
+                >
+                  View Details
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 bg-gray-50 rounded-lg">
+          <p className="text-gray-500 mb-4">No projects found</p>
           <button
             onClick={() => setShowCreateModal(true)}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
           >
-            Create your first project
+            Create Your First Project
           </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {projects.map((project) => (
-            <div key={project.id} className="border rounded-md p-4 hover:shadow-md transition-shadow">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium">{project.title}</h3>
-                  {project.description && (
-                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">{project.description}</p>
-                  )}
-                </div>
-                <div className="flex items-center">
-                  <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(project.status)}`}>
-                    {project.status.replace('_', ' ')}
-                  </span>
-                  <button className="ml-2 text-gray-400 hover:text-gray-600">
-                    <MoreHorizontal size={16} />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="mt-4 flex items-center text-sm text-gray-500 space-x-4">
-                {project.startDate && (
-                  <div className="flex items-center">
-                    <Calendar size={14} className="mr-1" />
-                    <span>
-                      {new Date(project.startDate).toLocaleDateString()}
-                      {project.endDate && ` - ${new Date(project.endDate).toLocaleDateString()}`}
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center">
-                  <CheckSquare size={14} className="mr-1" />
-                  <span>{project.tasks.length} tasks</span>
-                </div>
-              </div>
-            </div>
-          ))}
-          
-          {limit && projects.length >= limit && (
-            <div className="text-center mt-4">
-              <Link 
-                href="/projects"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                View all projects
-              </Link>
-            </div>
-          )}
         </div>
       )}
       
@@ -228,11 +143,12 @@ export default function ProjectsOverview({ limit }: ProjectsOverviewProps) {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Create New Project</h2>
+            <h3 className="text-xl font-bold mb-4">Create New Project</h3>
+            
             <form onSubmit={handleCreateProject}>
               <div className="mb-4">
                 <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                  Title *
+                  Title
                 </label>
                 <input
                   type="text"
@@ -252,8 +168,7 @@ export default function ProjectsOverview({ limit }: ProjectsOverviewProps) {
                   id="description"
                   value={newProject.description}
                   onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
                 />
               </div>
               
